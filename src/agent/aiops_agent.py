@@ -181,6 +181,63 @@ class AIOpsAgent:
         self.running = False
         logger.info("Agent stop requested")
 
+    def restart(self):
+        """Stop the agent, reset transient state, and start a new background loop."""
+        self.stop()
+        time.sleep(self.interval + 0.5)  # wait for current cycle to finish
+        self.cycle_count = 0
+        self.anomaly_count = 0
+        self.remediation_count = 0
+        with self._lock:
+            self.events.clear()
+            self.recent_metrics.clear()
+        self._log_event("info", "Agent restarted")
+        logger.info("Agent state reset, starting new background loop")
+        return self.run_in_background()
+
+    def get_health_score(self) -> int:
+        """Compute a 0-100 health score from recent metrics.
+
+        Uses weighted distance from danger thresholds:
+        - cpu_usage > 90, memory_usage > 90, disk_io > 80,
+          network_latency > 100, error_rate > 20, request_rate < 100 (too low = unhealthy)
+        """
+        with self._lock:
+            metrics = list(self.recent_metrics)
+
+        if not metrics:
+            return 100  # no data yet, assume healthy
+
+        # Use the last 10 data points for a responsive score
+        window = metrics[-10:]
+        thresholds = {
+            "cpu_usage": (90, True),        # above 90 is bad
+            "memory_usage": (90, True),     # above 90 is bad
+            "disk_io": (80, True),          # above 80 is bad
+            "network_latency": (100, True), # above 100 is bad
+            "error_rate": (20, True),       # above 20 is bad
+        }
+        weights = {
+            "cpu_usage": 0.25,
+            "memory_usage": 0.25,
+            "disk_io": 0.15,
+            "network_latency": 0.15,
+            "error_rate": 0.20,
+        }
+
+        total_score = 0.0
+        for metric_name, (threshold, higher_is_bad) in thresholds.items():
+            values = [m.get(metric_name, 0) for m in window]
+            avg = sum(values) / len(values) if values else 0
+            if higher_is_bad:
+                ratio = avg / threshold  # 0..1+ where >1 means over threshold
+                metric_score = max(0, 1.0 - ratio) * 100
+            else:
+                metric_score = min(100, (avg / threshold) * 100)
+            total_score += metric_score * weights[metric_name]
+
+        return max(0, min(100, int(total_score)))
+
     def get_state(self) -> dict:
         """Get the current agent state for the dashboard."""
         with self._lock:
@@ -198,6 +255,8 @@ class AIOpsAgent:
             "remediation_stats": self.remediator.get_stats(),
             "detector_trained": bool(self.detector.is_trained),
             "history_size": int(len(self.detector.history)),
+            "health_score": self.get_health_score(),
+            "min_training_samples": self.config["detector"]["min_training_samples"],
         }
 
     def _print_summary(self):

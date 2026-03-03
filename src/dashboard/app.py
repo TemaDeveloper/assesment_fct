@@ -6,10 +6,11 @@ Provides:
 - Event timeline showing anomalies, diagnoses, and remediations
 - Agent statistics and health overview
 - REST API endpoints for programmatic access
+- Agent start/stop control endpoints
 """
 
 import numpy as np
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, request
 
 
 def sanitize_for_json(obj):
@@ -66,5 +67,25 @@ def create_app(agent):
             "detector_trained": state["detector_trained"],
             "history_size": state["history_size"],
         }))
+
+    @app.route("/api/agent/stop", methods=["POST"])
+    def api_agent_stop():
+        """Stop the agent's monitoring loop."""
+        agent.stop()
+        return jsonify({"status": "stopped"})
+
+    @app.route("/api/agent/start", methods=["POST"])
+    def api_agent_start():
+        """Restart the agent's monitoring loop."""
+        if agent.running:
+            return jsonify({"status": "already_running"})
+        agent.restart()
+        return jsonify({"status": "started"})
+
+    @app.route("/api/health")
+    def api_health():
+        """Return overall system health score (0-100)."""
+        score = agent.get_health_score()
+        return jsonify({"health_score": score})
 
     return app

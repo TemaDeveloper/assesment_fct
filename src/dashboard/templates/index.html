@@ -6,380 +6,1456 @@
     <title>AIOps Agent Dashboard</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-primary: #0b1120;
+            --bg-secondary: #111827;
+            --bg-card: rgba(17, 24, 39, 0.7);
+            --bg-card-hover: rgba(17, 24, 39, 0.9);
+            --border: rgba(55, 65, 81, 0.5);
+            --border-glow: rgba(0, 212, 170, 0.3);
+            --accent: #00d4aa;
+            --accent-dim: rgba(0, 212, 170, 0.15);
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --text-muted: #6b7280;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --info: #3b82f6;
+            --success: #10b981;
+            --sidebar-width: 240px;
+        }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #0f1923;
-            color: #e0e0e0;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
             min-height: 100vh;
-        }
-        .header {
-            background: linear-gradient(135deg, #1a2332 0%, #2d3748 100%);
-            padding: 20px 30px;
-            border-bottom: 2px solid #00d4aa;
             display: flex;
-            justify-content: space-between;
-            align-items: center;
+            overflow: hidden;
         }
-        .header h1 {
-            font-size: 24px;
-            color: #00d4aa;
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+
+        /* ============ SIDEBAR ============ */
+        .sidebar {
+            width: var(--sidebar-width);
+            min-height: 100vh;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
         }
-        .header .status {
+
+        .sidebar-brand {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sidebar-brand h1 {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--accent);
+            letter-spacing: -0.5px;
+        }
+
+        .sidebar-brand .subtitle {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .sidebar-status {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
             display: flex;
             align-items: center;
             gap: 10px;
         }
-        .status-dot {
-            width: 12px; height: 12px;
+
+        .status-indicator {
+            width: 10px; height: 10px;
             border-radius: 50%;
-            background: #00d4aa;
-            animation: pulse 2s infinite;
+            background: var(--accent);
+            box-shadow: 0 0 8px var(--accent);
+            animation: pulse-glow 2s ease-in-out infinite;
         }
-        @keyframes pulse {
+        .status-indicator.stopped { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+
+        @keyframes pulse-glow {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+            50% { opacity: 0.4; }
         }
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-        .stat-card {
-            background: #1a2332;
-            border-radius: 10px;
-            padding: 20px;
-            border: 1px solid #2d3748;
-            text-align: center;
-        }
-        .stat-card .value {
-            font-size: 36px;
-            font-weight: bold;
-            color: #00d4aa;
-        }
-        .stat-card .label {
+
+        .status-text {
             font-size: 13px;
-            color: #8899aa;
-            margin-top: 5px;
+            color: var(--text-secondary);
+        }
+        .status-text strong { color: var(--text-primary); }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 12px 0;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 20px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+        .nav-item:hover { background: rgba(255,255,255,0.03); color: var(--text-primary); }
+        .nav-item.active {
+            color: var(--accent);
+            background: var(--accent-dim);
+            border-left-color: var(--accent);
+        }
+        .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+
+        .sidebar-controls {
+            padding: 16px 20px;
+            border-top: 1px solid var(--border);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            width: 100%;
+        }
+        .btn-start {
+            background: var(--accent);
+            color: #000;
+        }
+        .btn-start:hover { background: #00e8bb; }
+        .btn-stop {
+            background: var(--danger);
+            color: #fff;
+        }
+        .btn-stop:hover { background: #f87171; }
+        .btn-stop:disabled, .btn-start:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .control-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .control-row .btn { flex: 1; }
+
+        .sidebar-settings {
+            padding: 12px 20px;
+            border-top: 1px solid var(--border);
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .setting-row select, .setting-row label {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .setting-row select {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 3px 6px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 32px;
+            height: 18px;
+        }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            inset: 0;
+            background: var(--border);
+            border-radius: 9px;
+            transition: 0.2s;
+        }
+        .toggle-slider::before {
+            content: "";
+            position: absolute;
+            height: 14px; width: 14px;
+            left: 2px; bottom: 2px;
+            background: white;
+            border-radius: 50%;
+            transition: 0.2s;
+        }
+        .toggle-switch input:checked + .toggle-slider { background: var(--accent); }
+        .toggle-switch input:checked + .toggle-slider::before { transform: translateX(14px); }
+
+        /* ============ MAIN CONTENT ============ */
+        .main-content {
+            flex: 1;
+            overflow-y: auto;
+            height: 100vh;
+        }
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 24px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(17, 24, 39, 0.5);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .tab-bar {
+            display: flex;
+            gap: 4px;
+        }
+        .tab-btn {
+            padding: 6px 16px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+        .tab-btn:hover { color: var(--text-primary); background: rgba(255,255,255,0.05); }
+        .tab-btn.active { color: var(--accent); background: var(--accent-dim); }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .health-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 12px;
+        }
+        .health-badge.good { background: rgba(16, 185, 129, 0.15); color: var(--success); }
+        .health-badge.warning { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
+        .health-badge.critical { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+
+        .content-area {
+            padding: 20px 24px;
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* ============ GLASS CARDS ============ */
+        .card {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            transition: border-color 0.3s;
+        }
+        .card:hover { border-color: var(--border-glow); }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .card-title {
+            font-size: 12px;
             text-transform: uppercase;
             letter-spacing: 1px;
+            color: var(--text-muted);
+            font-weight: 600;
         }
-        .stat-card.warning .value { color: #ffaa00; }
-        .stat-card.danger .value { color: #ff4444; }
+
+        /* ============ STATS GRID ============ */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        .stat-card:hover { border-color: var(--border-glow); transform: translateY(-1px); }
+
+        .stat-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--accent);
+            transition: all 0.3s;
+            line-height: 1;
+        }
+        .stat-value.warning { color: var(--warning); }
+        .stat-value.danger { color: var(--danger); }
+
+        .stat-sparkline {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 80px;
+            height: 30px;
+            opacity: 0.3;
+        }
+
+        /* ============ HEALTH GAUGE ============ */
+        .health-section {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .gauge-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .gauge-svg { width: 160px; height: 100px; }
+        .gauge-value {
+            font-size: 32px;
+            font-weight: 700;
+            text-align: center;
+            margin-top: -4px;
+        }
+        .gauge-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            text-align: center;
+            margin-top: 4px;
+        }
+
+        /* ============ PIPELINE ============ */
+        .pipeline-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .pipeline-step {
+            flex: 1;
+            min-width: 100px;
+            text-align: center;
+            padding: 12px 8px;
+            background: var(--bg-primary);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        .pipeline-step:hover {
+            border-color: var(--accent);
+            background: rgba(0, 212, 170, 0.05);
+            transform: translateY(-2px);
+        }
+        .pipeline-step.active-step {
+            border-color: var(--accent);
+            box-shadow: 0 0 12px var(--accent-dim);
+        }
+        .pipeline-step .step-icon { font-size: 20px; margin-bottom: 4px; }
+        .pipeline-step .step-name { font-size: 11px; color: var(--accent); font-weight: 600; }
+        .pipeline-step .step-desc { font-size: 9px; color: var(--text-muted); margin-top: 2px; }
+        .pipeline-arrow { color: var(--text-muted); font-size: 14px; flex-shrink: 0; }
+
+        /* ============ CHARTS ============ */
         .charts-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 15px;
+            gap: 12px;
             margin-bottom: 20px;
         }
-        .chart-card {
-            background: #1a2332;
-            border-radius: 10px;
-            padding: 15px;
-            border: 1px solid #2d3748;
+
+        /* ============ EVENTS ============ */
+        .events-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
         }
-        .chart-card h3 {
-            color: #00d4aa;
-            margin-bottom: 10px;
-            font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        .events-section {
-            background: #1a2332;
-            border-radius: 10px;
-            padding: 20px;
-            border: 1px solid #2d3748;
-            max-height: 400px;
-            overflow-y: auto;
-        }
-        .events-section h3 {
-            color: #00d4aa;
-            margin-bottom: 15px;
-            font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        .event-item {
-            padding: 10px 15px;
-            margin-bottom: 8px;
-            border-radius: 6px;
-            background: #0f1923;
-            border-left: 3px solid #2d3748;
-            font-size: 13px;
-        }
-        .event-item.anomaly { border-left-color: #ff4444; }
-        .event-item.diagnosis { border-left-color: #ffaa00; }
-        .event-item.remediation { border-left-color: #00d4aa; }
-        .event-item.info { border-left-color: #4488ff; }
-        .event-item.metric { border-left-color: #2d3748; }
-        .event-time {
-            color: #667788;
+
+        .filter-btn {
+            padding: 4px 10px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-muted);
             font-size: 11px;
-            margin-bottom: 3px;
+            cursor: pointer;
+            transition: all 0.2s;
         }
+        .filter-btn:hover { border-color: var(--text-secondary); color: var(--text-secondary); }
+        .filter-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+        .event-list {
+            max-height: 500px;
+            overflow-y: auto;
+            margin-top: 12px;
+        }
+
+        .event-item {
+            padding: 10px 14px;
+            margin-bottom: 6px;
+            border-radius: 8px;
+            background: var(--bg-primary);
+            border-left: 3px solid var(--border);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .event-item:hover { background: rgba(255,255,255,0.03); }
+        .event-item.anomaly { border-left-color: var(--danger); }
+        .event-item.diagnosis { border-left-color: var(--warning); }
+        .event-item.remediation { border-left-color: var(--success); }
+        .event-item.info { border-left-color: var(--info); }
+
+        .event-time {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-bottom: 2px;
+        }
+
         .event-badge {
             display: inline-block;
-            padding: 2px 8px;
+            padding: 1px 6px;
             border-radius: 3px;
-            font-size: 10px;
-            font-weight: bold;
+            font-size: 9px;
+            font-weight: 700;
             text-transform: uppercase;
-            margin-right: 8px;
+            margin-right: 6px;
+            letter-spacing: 0.5px;
         }
-        .badge-anomaly { background: #ff4444; color: white; }
-        .badge-diagnosis { background: #ffaa00; color: black; }
-        .badge-remediation { background: #00d4aa; color: black; }
-        .badge-info { background: #4488ff; color: white; }
-        .architecture {
-            background: #1a2332;
-            border-radius: 10px;
-            padding: 20px;
-            border: 1px solid #2d3748;
-            margin-bottom: 20px;
+        .badge-anomaly { background: var(--danger); color: white; }
+        .badge-diagnosis { background: var(--warning); color: black; }
+        .badge-remediation { background: var(--success); color: black; }
+        .badge-info { background: var(--info); color: white; }
+
+        /* ============ MODAL ============ */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
         }
-        .architecture h3 {
-            color: #00d4aa;
-            margin-bottom: 15px;
-            font-size: 14px;
-            text-transform: uppercase;
+        .modal-overlay.active { display: flex; }
+
+        .modal {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            padding: 24px;
         }
-        .pipeline {
+
+        .modal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            gap: 10px;
+            margin-bottom: 16px;
         }
-        .pipeline-step {
-            flex: 1;
-            text-align: center;
-            padding: 15px;
-            background: #0f1923;
+        .modal-header h3 {
+            color: var(--accent);
+            font-size: 16px;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 20px;
+            cursor: pointer;
+            padding: 4px;
+        }
+        .modal-close:hover { color: var(--text-primary); }
+
+        .detail-json {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
             border-radius: 8px;
-            border: 1px solid #2d3748;
+            padding: 16px;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 12px;
+            color: var(--text-secondary);
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 400px;
+            overflow-y: auto;
         }
-        .pipeline-step .icon { font-size: 24px; margin-bottom: 5px; }
-        .pipeline-step .name { font-size: 12px; color: #00d4aa; font-weight: bold; }
-        .pipeline-step .desc { font-size: 10px; color: #667788; margin-top: 3px; }
-        .pipeline-arrow { color: #00d4aa; font-size: 20px; }
-        @media (max-width: 768px) {
+
+        /* ============ SETTINGS TAB ============ */
+        .settings-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .settings-group h4 {
+            color: var(--accent);
+            font-size: 13px;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .settings-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+        .settings-item .label { color: var(--text-secondary); }
+        .settings-item .value { color: var(--text-primary); font-weight: 600; }
+
+        /* ============ PIPELINE MODAL RICH CONTENT ============ */
+        .pipeline-detail { color: var(--text-secondary); font-size: 13px; line-height: 1.7; }
+        .pipeline-detail h4 { color: var(--accent); font-size: 14px; margin: 16px 0 8px 0; text-transform: uppercase; letter-spacing: 0.5px; }
+        .pipeline-detail h4:first-child { margin-top: 0; }
+        .pipeline-detail p { margin: 6px 0; }
+        .pipeline-detail ul { margin: 6px 0 6px 20px; }
+        .pipeline-detail li { margin: 4px 0; }
+        .pipeline-detail code {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 12px;
+            color: var(--accent);
+        }
+        .pipeline-detail .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .pipeline-detail .stat-row .label { color: var(--text-muted); }
+        .pipeline-detail .stat-row .val { color: var(--text-primary); font-weight: 600; }
+
+        /* ============ RESPONSIVE ============ */
+        @media (max-width: 1024px) {
             .charts-grid { grid-template-columns: 1fr; }
-            .pipeline { flex-direction: column; }
+            .health-section { grid-template-columns: 1fr; }
+            .settings-grid { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .pipeline-row { flex-direction: column; }
             .pipeline-arrow { transform: rotate(90deg); }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>AIOps Agent Dashboard</h1>
-        <div class="status">
-            <div class="status-dot" id="statusDot"></div>
-            <span id="statusText">Connecting...</span>
+    <!-- ============ SIDEBAR ============ -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <h1>AIOps Agent</h1>
+            <div class="subtitle">Autonomous Operations</div>
+        </div>
+
+        <div class="sidebar-status">
+            <div class="status-indicator" id="statusIndicator"></div>
+            <div class="status-text"><strong id="statusText">Connecting...</strong></div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-item active" data-tab="overview">
+                <span class="nav-icon">&#9679;</span> Overview
+            </div>
+            <div class="nav-item" data-tab="metrics">
+                <span class="nav-icon">&#9670;</span> Metrics
+            </div>
+            <div class="nav-item" data-tab="events">
+                <span class="nav-icon">&#9733;</span> Events
+            </div>
+            <div class="nav-item" data-tab="settings">
+                <span class="nav-icon">&#9881;</span> Settings
+            </div>
+        </nav>
+
+        <div class="sidebar-controls">
+            <div class="control-row">
+                <button class="btn btn-start" id="btnStart" onclick="startAgent()">Start</button>
+                <button class="btn btn-stop" id="btnStop" onclick="stopAgent()">Stop</button>
+            </div>
+        </div>
+
+        <div class="sidebar-settings">
+            <div class="setting-row">
+                <span>Refresh</span>
+                <select id="pollInterval" onchange="changePollInterval()">
+                    <option value="1000">1s</option>
+                    <option value="3000" selected>3s</option>
+                    <option value="5000">5s</option>
+                </select>
+            </div>
+            <div class="setting-row">
+                <span>Auto-scroll</span>
+                <div class="toggle-switch">
+                    <input type="checkbox" id="autoScroll" checked>
+                    <span class="toggle-slider" onclick="this.previousElementSibling.click()"></span>
+                </div>
+            </div>
+            <div class="setting-row">
+                <span>Sound</span>
+                <div class="toggle-switch">
+                    <input type="checkbox" id="soundToggle">
+                    <span class="toggle-slider" onclick="this.previousElementSibling.click()"></span>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ============ MAIN ============ -->
+    <div class="main-content">
+        <div class="topbar">
+            <div class="tab-bar">
+                <button class="tab-btn active" data-tab="overview">Overview</button>
+                <button class="tab-btn" data-tab="metrics">Metrics</button>
+                <button class="tab-btn" data-tab="events">Events</button>
+                <button class="tab-btn" data-tab="settings">Settings</button>
+            </div>
+            <div class="topbar-right">
+                <div class="health-badge good" id="healthBadge">
+                    <span id="healthIcon">&#9829;</span>
+                    <span>Health: <strong id="healthValue">100</strong></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-area">
+            <!-- ======== OVERVIEW TAB ======== -->
+            <div class="tab-content active" id="tab-overview">
+                <!-- Stats -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Monitoring Cycles</div>
+                        <div class="stat-value" id="cycleCount">0</div>
+                        <svg class="stat-sparkline" id="spark-cycles"></svg>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Anomalies Detected</div>
+                        <div class="stat-value warning" id="anomalyCount">0</div>
+                        <svg class="stat-sparkline" id="spark-anomalies"></svg>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Remediations</div>
+                        <div class="stat-value" id="remediationCount">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Success Rate</div>
+                        <div class="stat-value" id="successRate">0%</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">ML Model</div>
+                        <div class="stat-value" id="mlStatus" style="font-size:18px">--</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Training Samples</div>
+                        <div class="stat-value" id="historySize">0</div>
+                    </div>
+                </div>
+
+                <!-- Health + Pipeline -->
+                <div class="health-section">
+                    <div class="card gauge-container">
+                        <svg class="gauge-svg" viewBox="0 0 160 100" id="healthGauge">
+                            <path d="M20 90 A60 60 0 0 1 140 90" fill="none" stroke="#1f2937" stroke-width="12" stroke-linecap="round"/>
+                            <path d="M20 90 A60 60 0 0 1 140 90" fill="none" stroke="var(--accent)" stroke-width="12" stroke-linecap="round"
+                                  id="gaugeArc" stroke-dasharray="0 188.5"/>
+                        </svg>
+                        <div class="gauge-value" id="gaugeValue" style="color:var(--accent)">100</div>
+                        <div class="gauge-label">System Health</div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">Agent Pipeline (MAPE-K Loop)</span>
+                        </div>
+                        <div class="pipeline-row">
+                            <div class="pipeline-step active-step" onclick="showPipelineDetail('monitor')">
+                                <div class="step-icon">&#128202;</div>
+                                <div class="step-name">Monitor</div>
+                                <div class="step-desc">Collect Metrics</div>
+                            </div>
+                            <div class="pipeline-arrow">&#8594;</div>
+                            <div class="pipeline-step" onclick="showPipelineDetail('detect')">
+                                <div class="step-icon">&#128269;</div>
+                                <div class="step-name">Detect</div>
+                                <div class="step-desc">IsoForest + Z-Score</div>
+                            </div>
+                            <div class="pipeline-arrow">&#8594;</div>
+                            <div class="pipeline-step" onclick="showPipelineDetail('analyze')">
+                                <div class="step-icon">&#129504;</div>
+                                <div class="step-name">Analyze</div>
+                                <div class="step-desc">Root Cause Analysis</div>
+                            </div>
+                            <div class="pipeline-arrow">&#8594;</div>
+                            <div class="pipeline-step" onclick="showPipelineDetail('remediate')">
+                                <div class="step-icon">&#9889;</div>
+                                <div class="step-name">Remediate</div>
+                                <div class="step-desc">Autonomous Actions</div>
+                            </div>
+                            <div class="pipeline-arrow">&#8594;</div>
+                            <div class="pipeline-step" onclick="showPipelineDetail('learn')">
+                                <div class="step-icon">&#128218;</div>
+                                <div class="step-name">Learn</div>
+                                <div class="step-desc">Adaptive Learning</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts -->
+                <div class="charts-grid">
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">CPU & Memory</span></div>
+                        <div id="cpuMemChart"></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">Network & Errors</span></div>
+                        <div id="netErrorChart"></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">Disk I/O & Requests</span></div>
+                        <div id="diskReqChart"></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">Anomaly Timeline</span></div>
+                        <div id="anomalyTimeline"></div>
+                    </div>
+                </div>
+
+                <!-- Recent Events -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Recent Events</span>
+                    </div>
+                    <div class="event-list" id="overviewEventLog" style="max-height: 250px;"></div>
+                </div>
+            </div>
+
+            <!-- ======== METRICS TAB ======== -->
+            <div class="tab-content" id="tab-metrics">
+                <div class="stats-grid" style="margin-bottom:20px">
+                    <div class="card" style="text-align:center">
+                        <div class="stat-label">Current CPU</div>
+                        <div class="stat-value" id="liveCpu">--</div>
+                    </div>
+                    <div class="card" style="text-align:center">
+                        <div class="stat-label">Current Memory</div>
+                        <div class="stat-value" id="liveMem">--</div>
+                    </div>
+                    <div class="card" style="text-align:center">
+                        <div class="stat-label">Network Latency</div>
+                        <div class="stat-value" id="liveNet">--</div>
+                    </div>
+                    <div class="card" style="text-align:center">
+                        <div class="stat-label">Error Rate</div>
+                        <div class="stat-value" id="liveErr">--</div>
+                    </div>
+                    <div class="card" style="text-align:center">
+                        <div class="stat-label">Disk I/O</div>
+                        <div class="stat-value" id="liveDisk">--</div>
+                    </div>
+                    <div class="card" style="text-align:center">
+                        <div class="stat-label">Request Rate</div>
+                        <div class="stat-value" id="liveReq">--</div>
+                    </div>
+                </div>
+                <div class="charts-grid">
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">CPU & Memory (Detail)</span></div>
+                        <div id="cpuMemChartDetail"></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">Network & Errors (Detail)</span></div>
+                        <div id="netErrorChartDetail"></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">Disk I/O & Requests (Detail)</span></div>
+                        <div id="diskReqChartDetail"></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">Health Score Over Time</span></div>
+                        <div id="healthChart"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ======== EVENTS TAB ======== -->
+            <div class="tab-content" id="tab-events">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Agent Event Log</span>
+                        <div class="events-toolbar">
+                            <button class="filter-btn active" data-filter="all" onclick="toggleFilter(this)">All</button>
+                            <button class="filter-btn" data-filter="anomaly" onclick="toggleFilter(this)">Anomalies</button>
+                            <button class="filter-btn" data-filter="diagnosis" onclick="toggleFilter(this)">Diagnoses</button>
+                            <button class="filter-btn" data-filter="remediation" onclick="toggleFilter(this)">Remediations</button>
+                            <button class="filter-btn" data-filter="info" onclick="toggleFilter(this)">Info</button>
+                        </div>
+                    </div>
+                    <div class="event-list" id="fullEventLog"></div>
+                </div>
+            </div>
+
+            <!-- ======== SETTINGS TAB ======== -->
+            <div class="tab-content" id="tab-settings">
+                <div class="settings-grid">
+                    <div class="card settings-group">
+                        <h4>Agent Configuration</h4>
+                        <div class="settings-item"><span class="label">Agent Name</span><span class="value" id="cfgName">--</span></div>
+                        <div class="settings-item"><span class="label">Monitoring Interval</span><span class="value" id="cfgInterval">--</span></div>
+                        <div class="settings-item"><span class="label">Autonomous Mode</span><span class="value" id="cfgAuto">--</span></div>
+                        <div class="settings-item"><span class="label">ML Model Status</span><span class="value" id="cfgML">--</span></div>
+                        <div class="settings-item"><span class="label">Training Samples</span><span class="value" id="cfgSamples">--</span></div>
+                    </div>
+                    <div class="card settings-group">
+                        <h4>Remediation Statistics</h4>
+                        <div class="settings-item"><span class="label">Total Actions</span><span class="value" id="cfgTotalActions">--</span></div>
+                        <div class="settings-item"><span class="label">Overall Success Rate</span><span class="value" id="cfgSuccessRate">--</span></div>
+                        <div class="settings-item"><span class="label">Autonomous Actions</span><span class="value" id="cfgAutoActions">--</span></div>
+                        <div class="settings-item"><span class="label">Auto Success Rate</span><span class="value" id="cfgAutoRate">--</span></div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <div class="container">
-        <!-- Architecture Pipeline -->
-        <div class="architecture">
-            <h3>Agent Pipeline (MAPE-K Loop)</h3>
-            <div class="pipeline">
-                <div class="pipeline-step">
-                    <div class="icon">📊</div>
-                    <div class="name">Monitor</div>
-                    <div class="desc">Collect Metrics</div>
-                </div>
-                <div class="pipeline-arrow">→</div>
-                <div class="pipeline-step">
-                    <div class="icon">🔍</div>
-                    <div class="name">Detect</div>
-                    <div class="desc">Isolation Forest + Z-Score</div>
-                </div>
-                <div class="pipeline-arrow">→</div>
-                <div class="pipeline-step">
-                    <div class="icon">🧠</div>
-                    <div class="name">Analyze</div>
-                    <div class="desc">Root Cause Analysis</div>
-                </div>
-                <div class="pipeline-arrow">→</div>
-                <div class="pipeline-step">
-                    <div class="icon">⚡</div>
-                    <div class="name">Remediate</div>
-                    <div class="desc">Autonomous Actions</div>
-                </div>
-                <div class="pipeline-arrow">→</div>
-                <div class="pipeline-step">
-                    <div class="icon">📚</div>
-                    <div class="name">Learn</div>
-                    <div class="desc">Improve Over Time</div>
-                </div>
+    <!-- ============ DETAIL MODAL ============ -->
+    <div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3 id="modalTitle">Event Details</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
             </div>
-        </div>
-
-        <!-- Stats Cards -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="value" id="cycleCount">0</div>
-                <div class="label">Monitoring Cycles</div>
-            </div>
-            <div class="stat-card warning">
-                <div class="value" id="anomalyCount">0</div>
-                <div class="label">Anomalies Detected</div>
-            </div>
-            <div class="stat-card">
-                <div class="value" id="remediationCount">0</div>
-                <div class="label">Remediations</div>
-            </div>
-            <div class="stat-card">
-                <div class="value" id="successRate">0%</div>
-                <div class="label">Success Rate</div>
-            </div>
-            <div class="stat-card">
-                <div class="value" id="mlStatus">--</div>
-                <div class="label">ML Model</div>
-            </div>
-            <div class="stat-card">
-                <div class="value" id="historySize">0</div>
-                <div class="label">Training Samples</div>
-            </div>
-        </div>
-
-        <!-- Charts -->
-        <div class="charts-grid">
-            <div class="chart-card">
-                <h3>CPU & Memory Usage</h3>
-                <div id="cpuMemChart"></div>
-            </div>
-            <div class="chart-card">
-                <h3>Network Latency & Error Rate</h3>
-                <div id="netErrorChart"></div>
-            </div>
-            <div class="chart-card">
-                <h3>Disk I/O & Request Rate</h3>
-                <div id="diskReqChart"></div>
-            </div>
-            <div class="chart-card">
-                <h3>Anomaly Detection Timeline</h3>
-                <div id="anomalyTimeline"></div>
-            </div>
-        </div>
-
-        <!-- Event Log -->
-        <div class="events-section">
-            <h3>Agent Event Log (Latest First)</h3>
-            <div id="eventLog"></div>
+            <div class="detail-json" id="modalBody"></div>
+            <div id="modalRichBody" style="display:none"></div>
         </div>
     </div>
 
     <script>
-        const chartLayout = {
-            paper_bgcolor: '#1a2332',
-            plot_bgcolor: '#0f1923',
-            font: { color: '#8899aa', size: 11 },
-            margin: { t: 10, r: 20, b: 30, l: 50 },
-            height: 220,
-            xaxis: { gridcolor: '#2d3748', tickangle: -45 },
-            yaxis: { gridcolor: '#2d3748' },
-            legend: { orientation: 'h', y: -0.2 },
+        /* ============ STATE ============ */
+        let pollTimer = null;
+        let pollIntervalMs = 3000;
+        let activeFilter = 'all';
+        let allEvents = [];
+        let healthHistory = [];
+        let lastAnomalyCount = 0;
+
+        const anomalyTypeColors = {
+            cpu_spike: '#ef4444',
+            memory_leak: '#f59e0b',
+            disk_saturation: '#8b5cf6',
+            network_degradation: '#3b82f6',
+            error_burst: '#ec4899',
+            cascading_failure: '#f97316',
         };
 
-        function initCharts() {
-            Plotly.newPlot('cpuMemChart', [
-                { y: [], name: 'CPU %', type: 'scatter', line: { color: '#ff6b6b' } },
-                { y: [], name: 'Memory %', type: 'scatter', line: { color: '#4ecdc4' } },
-            ], chartLayout);
+        /* ============ TABS ============ */
+        document.querySelectorAll('[data-tab]').forEach(el => {
+            el.addEventListener('click', () => {
+                const tab = el.dataset.tab;
+                // Update nav
+                document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.tab === tab));
+                document.querySelectorAll('.tab-btn').forEach(n => n.classList.toggle('active', n.dataset.tab === tab));
+                // Show content
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === 'tab-' + tab));
+            });
+        });
 
-            Plotly.newPlot('netErrorChart', [
-                { y: [], name: 'Latency (ms)', type: 'scatter', line: { color: '#ffd93d' } },
-                { y: [], name: 'Errors/min', type: 'scatter', line: { color: '#ff4444' } },
-            ], chartLayout);
+        /* ============ CHART CONFIG ============ */
+        const chartLayout = {
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            font: { color: '#6b7280', size: 10 },
+            margin: { t: 8, r: 16, b: 36, l: 48 },
+            height: 200,
+            xaxis: { gridcolor: 'rgba(55,65,81,0.3)', tickangle: -45, type: 'date' },
+            yaxis: { gridcolor: 'rgba(55,65,81,0.3)' },
+            legend: { orientation: 'h', y: -0.25, font: { size: 10 } },
+            showlegend: true,
+        };
 
-            Plotly.newPlot('diskReqChart', [
-                { y: [], name: 'Disk I/O (MB/s)', type: 'scatter', line: { color: '#6c5ce7' } },
-                { y: [], name: 'Requests/s', type: 'scatter', line: { color: '#00d4aa' } },
-            ], chartLayout);
+        const chartConfig = { displayModeBar: false, responsive: true };
 
-            Plotly.newPlot('anomalyTimeline', [
-                { y: [], name: 'Anomaly Score', type: 'bar', marker: { color: '#ff4444' } },
-            ], chartLayout);
+        function makeAreaTrace(name, color) {
+            return {
+                x: [], y: [], name: name,
+                type: 'scatter', mode: 'lines',
+                fill: 'tozeroy',
+                fillcolor: color.replace(')', ',0.1)').replace('rgb', 'rgba'),
+                line: { color: color, width: 2 },
+            };
         }
 
+        function makeAnomalyMarkers() {
+            return {
+                x: [], y: [], name: 'Anomalies',
+                type: 'scatter', mode: 'markers',
+                marker: { color: '#ef4444', size: 8, symbol: 'x' },
+                showlegend: false,
+            };
+        }
+
+        /* ============ INIT CHARTS ============ */
+        function initCharts() {
+            const cpuTrace = makeAreaTrace('CPU %', '#ef4444');
+            const memTrace = makeAreaTrace('Memory %', '#06b6d4');
+            const cpuAnom = makeAnomalyMarkers();
+            Plotly.newPlot('cpuMemChart', [cpuTrace, memTrace, cpuAnom], chartLayout, chartConfig);
+            Plotly.newPlot('cpuMemChartDetail', [cpuTrace, memTrace, cpuAnom], {...chartLayout, height: 260}, chartConfig);
+
+            const latTrace = makeAreaTrace('Latency (ms)', '#f59e0b');
+            const errTrace = makeAreaTrace('Errors/min', '#ef4444');
+            const netAnom = makeAnomalyMarkers();
+            Plotly.newPlot('netErrorChart', [latTrace, errTrace, netAnom], chartLayout, chartConfig);
+            Plotly.newPlot('netErrorChartDetail', [latTrace, errTrace, netAnom], {...chartLayout, height: 260}, chartConfig);
+
+            const diskTrace = makeAreaTrace('Disk I/O (MB/s)', '#8b5cf6');
+            const reqTrace = makeAreaTrace('Requests/s', '#10b981');
+            const diskAnom = makeAnomalyMarkers();
+            Plotly.newPlot('diskReqChart', [diskTrace, reqTrace, diskAnom], chartLayout, chartConfig);
+            Plotly.newPlot('diskReqChartDetail', [diskTrace, reqTrace, diskAnom], {...chartLayout, height: 260}, chartConfig);
+
+            // Anomaly timeline - bar chart colored by type
+            Plotly.newPlot('anomalyTimeline', [{
+                x: [], y: [], type: 'bar',
+                marker: { color: [] },
+                name: 'Anomaly',
+                hovertemplate: '%{text}<extra></extra>',
+                text: [],
+            }], {...chartLayout, yaxis: {...chartLayout.yaxis, dtick: 1, range: [0, 1.5]}}, chartConfig);
+
+            // Health chart
+            const healthTrace = makeAreaTrace('Health Score', '#10b981');
+            Plotly.newPlot('healthChart', [healthTrace], {...chartLayout, height: 260, yaxis: {...chartLayout.yaxis, range: [0, 105]}}, chartConfig);
+        }
+
+        /* ============ UPDATE CHARTS ============ */
         function updateCharts(metrics) {
             if (!metrics || metrics.length === 0) return;
 
+            const timestamps = metrics.map(m => m.timestamp || new Date().toISOString());
             const cpu = metrics.map(m => m.cpu_usage);
             const mem = metrics.map(m => m.memory_usage);
             const lat = metrics.map(m => m.network_latency);
             const err = metrics.map(m => m.error_rate);
             const disk = metrics.map(m => m.disk_io);
             const req = metrics.map(m => m.request_rate);
-            const labels = metrics.map((m, i) => i);
-            const anomaly = metrics.map(m => m.is_anomaly ? 1 : 0);
 
-            Plotly.update('cpuMemChart', { y: [cpu, mem], x: [labels, labels] });
-            Plotly.update('netErrorChart', { y: [lat, err], x: [labels, labels] });
-            Plotly.update('diskReqChart', { y: [disk, req], x: [labels, labels] });
-            Plotly.update('anomalyTimeline', { y: [anomaly], x: [labels] });
+            // Anomaly markers on metric charts
+            const anomIdx = metrics.reduce((acc, m, i) => { if (m.is_anomaly) acc.push(i); return acc; }, []);
+            const anomTimestamps = anomIdx.map(i => timestamps[i]);
+            const anomCpu = anomIdx.map(i => cpu[i]);
+            const anomLat = anomIdx.map(i => lat[i]);
+            const anomDisk = anomIdx.map(i => disk[i]);
+
+            Plotly.update('cpuMemChart', {
+                x: [timestamps, timestamps, anomTimestamps],
+                y: [cpu, mem, anomCpu],
+            });
+            Plotly.update('cpuMemChartDetail', {
+                x: [timestamps, timestamps, anomTimestamps],
+                y: [cpu, mem, anomCpu],
+            });
+
+            Plotly.update('netErrorChart', {
+                x: [timestamps, timestamps, anomTimestamps],
+                y: [lat, err, anomLat],
+            });
+            Plotly.update('netErrorChartDetail', {
+                x: [timestamps, timestamps, anomTimestamps],
+                y: [lat, err, anomLat],
+            });
+
+            Plotly.update('diskReqChart', {
+                x: [timestamps, timestamps, anomTimestamps],
+                y: [disk, req, anomDisk],
+            });
+            Plotly.update('diskReqChartDetail', {
+                x: [timestamps, timestamps, anomTimestamps],
+                y: [disk, req, anomDisk],
+            });
+
+            // Anomaly timeline colored by type
+            const anomalyBars = metrics.filter(m => m.is_anomaly);
+            const barX = anomalyBars.map(m => m.timestamp);
+            const barY = anomalyBars.map(() => 1);
+            const barColors = anomalyBars.map(m => anomalyTypeColors[m.anomaly_type] || '#ef4444');
+            const barText = anomalyBars.map(m => m.anomaly_type || 'unknown');
+            Plotly.update('anomalyTimeline', {
+                x: [barX], y: [barY],
+                'marker.color': [barColors],
+                text: [barText],
+            });
+
+            // Live metric values
+            const last = metrics[metrics.length - 1];
+            if (last) {
+                document.getElementById('liveCpu').textContent = last.cpu_usage.toFixed(1) + '%';
+                document.getElementById('liveMem').textContent = last.memory_usage.toFixed(1) + '%';
+                document.getElementById('liveNet').textContent = last.network_latency.toFixed(1) + 'ms';
+                document.getElementById('liveErr').textContent = last.error_rate.toFixed(1) + '/min';
+                document.getElementById('liveDisk').textContent = last.disk_io.toFixed(1) + ' MB/s';
+                document.getElementById('liveReq').textContent = last.request_rate.toFixed(0) + '/s';
+
+                // Color code live metrics
+                colorMetric('liveCpu', last.cpu_usage, 70, 90);
+                colorMetric('liveMem', last.memory_usage, 70, 90);
+                colorMetric('liveNet', last.network_latency, 50, 100);
+                colorMetric('liveErr', last.error_rate, 10, 20);
+            }
         }
 
+        function colorMetric(id, val, warnThreshold, dangerThreshold) {
+            const el = document.getElementById(id);
+            el.classList.remove('warning', 'danger');
+            if (val >= dangerThreshold) el.classList.add('danger');
+            else if (val >= warnThreshold) el.classList.add('warning');
+        }
+
+        /* ============ HEALTH GAUGE ============ */
+        function updateHealthGauge(score) {
+            const arc = document.getElementById('gaugeArc');
+            const maxLen = 188.5;
+            const dashLen = (score / 100) * maxLen;
+            arc.setAttribute('stroke-dasharray', dashLen + ' ' + maxLen);
+
+            let color = 'var(--success)';
+            let badgeClass = 'good';
+            if (score < 50) { color = 'var(--danger)'; badgeClass = 'critical'; }
+            else if (score < 75) { color = 'var(--warning)'; badgeClass = 'warning'; }
+
+            arc.setAttribute('stroke', color);
+            document.getElementById('gaugeValue').style.color = color;
+            document.getElementById('gaugeValue').textContent = score;
+            document.getElementById('healthValue').textContent = score;
+
+            const badge = document.getElementById('healthBadge');
+            badge.className = 'health-badge ' + badgeClass;
+
+            // Track health history
+            healthHistory.push({ time: new Date().toISOString(), score: score });
+            if (healthHistory.length > 100) healthHistory.shift();
+            Plotly.update('healthChart', {
+                x: [healthHistory.map(h => h.time)],
+                y: [healthHistory.map(h => h.score)],
+            });
+        }
+
+        /* ============ STATS ============ */
         function updateStats(state) {
-            document.getElementById('cycleCount').textContent = state.cycle_count;
-            document.getElementById('anomalyCount').textContent = state.anomaly_count;
-            document.getElementById('remediationCount').textContent = state.remediation_count;
-            document.getElementById('mlStatus').textContent = state.detector_trained ? 'Trained' : 'Learning';
+            animateValue('cycleCount', state.cycle_count);
+            animateValue('anomalyCount', state.anomaly_count);
+            animateValue('remediationCount', state.remediation_count);
+
+            const mlEl = document.getElementById('mlStatus');
+            mlEl.textContent = state.detector_trained ? 'Trained' : 'Learning';
+            mlEl.style.color = state.detector_trained ? 'var(--success)' : 'var(--warning)';
+
             document.getElementById('historySize').textContent = state.history_size;
 
             const rate = state.remediation_stats.autonomous_success_rate;
-            document.getElementById('successRate').textContent =
-                (rate * 100).toFixed(0) + '%';
+            document.getElementById('successRate').textContent = (rate * 100).toFixed(0) + '%';
 
-            document.getElementById('statusText').textContent =
-                state.running ? 'Running' : 'Stopped';
-            document.getElementById('statusDot').style.background =
-                state.running ? '#00d4aa' : '#ff4444';
+            // Status
+            document.getElementById('statusText').textContent = state.running ? 'Running' : 'Stopped';
+            const indicator = document.getElementById('statusIndicator');
+            indicator.classList.toggle('stopped', !state.running);
+            document.getElementById('btnStart').disabled = state.running;
+            document.getElementById('btnStop').disabled = !state.running;
+
+            // Health
+            updateHealthGauge(state.health_score !== undefined ? state.health_score : 100);
+
+            // Sound notification for new anomalies
+            if (state.anomaly_count > lastAnomalyCount && lastAnomalyCount > 0) {
+                if (document.getElementById('soundToggle').checked) {
+                    playNotificationSound();
+                }
+            }
+            lastAnomalyCount = state.anomaly_count;
+
+            // Settings tab
+            document.getElementById('cfgName').textContent = state.agent_name;
+            document.getElementById('cfgAuto').textContent = state.running ? 'Active' : 'Inactive';
+            document.getElementById('cfgML').textContent = state.detector_trained ? 'Trained' : 'Learning';
+            document.getElementById('cfgSamples').textContent = state.history_size + '/' + (state.min_training_samples || 30);
+            document.getElementById('cfgTotalActions').textContent = state.remediation_stats.total_actions;
+            document.getElementById('cfgSuccessRate').textContent = (state.remediation_stats.success_rate * 100).toFixed(0) + '%';
+            document.getElementById('cfgAutoActions').textContent = state.remediation_stats.autonomous_actions;
+            document.getElementById('cfgAutoRate').textContent = (state.remediation_stats.autonomous_success_rate * 100).toFixed(0) + '%';
         }
 
+        function animateValue(elementId, newValue) {
+            const el = document.getElementById(elementId);
+            const current = parseInt(el.textContent) || 0;
+            if (current !== newValue) {
+                el.textContent = newValue;
+                el.style.transform = 'scale(1.15)';
+                setTimeout(() => { el.style.transform = 'scale(1)'; }, 200);
+            }
+        }
+
+        /* ============ EVENTS ============ */
         function updateEvents(events) {
-            const log = document.getElementById('eventLog');
-            // Show only non-metric events, latest first
-            const filtered = events
-                .filter(e => e.event_type !== 'metric')
-                .reverse()
-                .slice(0, 50);
-
-            log.innerHTML = filtered.map(e => {
-                const badgeClass = 'badge-' + e.event_type;
-                return `
-                    <div class="event-item ${e.event_type}">
-                        <div class="event-time">${new Date(e.timestamp).toLocaleTimeString()}</div>
-                        <span class="event-badge ${badgeClass}">${e.event_type}</span>
-                        ${e.summary}
-                    </div>
-                `;
-            }).join('');
+            allEvents = events.filter(e => e.event_type !== 'metric');
+            renderEvents('fullEventLog', allEvents, activeFilter, 100);
+            renderEvents('overviewEventLog', allEvents, 'all', 15);
         }
 
+        function renderEvents(containerId, events, filter, limit) {
+            const container = document.getElementById(containerId);
+            let filtered = events;
+            if (filter !== 'all') {
+                filtered = events.filter(e => e.event_type === filter);
+            }
+
+            const items = filtered.slice().reverse().slice(0, limit);
+            container.innerHTML = items.map(e => {
+                const badgeClass = 'badge-' + e.event_type;
+                return '<div class="event-item ' + e.event_type + '" onclick=\'showEventDetail(' + JSON.stringify(JSON.stringify(e)) + ')\'>' +
+                    '<div class="event-time">' + new Date(e.timestamp).toLocaleTimeString() + '</div>' +
+                    '<span class="event-badge ' + badgeClass + '">' + e.event_type + '</span>' +
+                    escapeHtml(e.summary) +
+                    '</div>';
+            }).join('');
+
+            if (document.getElementById('autoScroll').checked && containerId === 'fullEventLog') {
+                container.scrollTop = 0;
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        /* ============ EVENT FILTERS ============ */
+        function toggleFilter(btn) {
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            activeFilter = btn.dataset.filter;
+            renderEvents('fullEventLog', allEvents, activeFilter, 100);
+        }
+
+        /* ============ MODAL ============ */
+        function showEventDetail(eventJson) {
+            const event = JSON.parse(eventJson);
+            document.getElementById('modalTitle').textContent =
+                event.event_type.charAt(0).toUpperCase() + event.event_type.slice(1) + ' Details';
+            document.getElementById('modalBody').textContent = JSON.stringify(event, null, 2);
+            document.getElementById('modalBody').style.display = 'block';
+            document.getElementById('modalRichBody').style.display = 'none';
+            document.getElementById('modalOverlay').classList.add('active');
+        }
+
+        /* ============ PIPELINE DETAIL INFO ============ */
+        let latestState = null;
+
+        const pipelineInfo = {
+            monitor: {
+                title: 'Monitor - Metric Collection',
+                build: (s) => `
+                    <div class="pipeline-detail">
+                        <h4>What it does</h4>
+                        <p>Continuously collects 6 system metrics from the infrastructure every monitoring cycle, simulating a real cloud environment with realistic diurnal patterns and Gaussian noise.</p>
+                        <h4>Metrics collected</h4>
+                        <ul>
+                            <li><code>cpu_usage</code> - Processor utilization (%)</li>
+                            <li><code>memory_usage</code> - RAM utilization (%)</li>
+                            <li><code>disk_io</code> - Disk throughput (MB/s)</li>
+                            <li><code>network_latency</code> - Network round-trip time (ms)</li>
+                            <li><code>error_rate</code> - Application errors per minute</li>
+                            <li><code>request_rate</code> - Incoming requests per second</li>
+                        </ul>
+                        <h4>Anomaly injection</h4>
+                        <p>The simulator probabilistically injects 6 anomaly types: <code>cpu_spike</code>, <code>memory_leak</code>, <code>disk_saturation</code>, <code>network_degradation</code>, <code>error_burst</code>, and <code>cascading_failure</code>. Memory leaks and cascading failures maintain persistent state across cycles until remediated.</p>
+                        <h4>Live stats</h4>
+                        <div class="stat-row"><span class="label">Cycles completed</span><span class="val">${s.cycle_count}</span></div>
+                        <div class="stat-row"><span class="label">History window</span><span class="val">${s.recent_metrics.length} data points</span></div>
+                    </div>`
+            },
+            detect: {
+                title: 'Detect - Anomaly Detection',
+                build: (s) => `
+                    <div class="pipeline-detail">
+                        <h4>What it does</h4>
+                        <p>Runs an <strong>ensemble</strong> of two complementary anomaly detection methods on every metric snapshot. If both agree, confidence is boosted. The higher-confidence result wins.</p>
+                        <h4>Method 1: Isolation Forest (unsupervised ML)</h4>
+                        <ul>
+                            <li>Scikit-learn <code>IsolationForest</code> trained on a sliding window of 6-dimensional metric vectors</li>
+                            <li>Learns what "normal" looks like by building random trees — anomalies are easier to isolate (shorter path length)</li>
+                            <li>Requires <strong>${s.min_training_samples || 30} samples</strong> before first training, retrains every 20 new samples to adapt to drift</li>
+                            <li>Catches <em>subtle multi-dimensional anomalies</em> that statistics miss</li>
+                            <li>Config: contamination=0.1, n_estimators=100</li>
+                        </ul>
+                        <h4>Method 2: Z-Score (statistical)</h4>
+                        <ul>
+                            <li>Computes per-metric Z-scores against the historical mean/std</li>
+                            <li>Flags any metric exceeding <strong>2.5 standard deviations</strong></li>
+                            <li>Works immediately (no training needed) — catches obvious single-metric spikes</li>
+                            <li>Confidence scales with how extreme the Z-score is</li>
+                        </ul>
+                        <h4>Ensemble voting</h4>
+                        <p>If both methods detect an anomaly, confidence = <code>(z_conf + if_conf) / 1.5</code> and anomalous metrics are merged. Otherwise the detector with higher confidence wins.</p>
+                        <h4>Live stats</h4>
+                        <div class="stat-row"><span class="label">ML model status</span><span class="val">${s.detector_trained ? 'Trained' : 'Learning'}</span></div>
+                        <div class="stat-row"><span class="label">Training samples</span><span class="val">${s.history_size} / ${s.min_training_samples || 30}</span></div>
+                        <div class="stat-row"><span class="label">Anomalies detected</span><span class="val">${s.anomaly_count}</span></div>
+                    </div>`
+            },
+            analyze: {
+                title: 'Analyze - Root Cause Analysis',
+                build: (s) => `
+                    <div class="pipeline-detail">
+                        <h4>What it does</h4>
+                        <p>Goes beyond "something is wrong" to determine <em>why</em> it's wrong. Combines knowledge-based pattern matching with statistical correlation analysis.</p>
+                        <h4>Step 1: Failure signature matching</h4>
+                        <p>Matches the set of anomalous metrics against a knowledge base of 6 known failure signatures. Each signature defines primary metrics (weighted 70%) and secondary metrics (weighted 30%), plus a coverage bonus.</p>
+                        <ul>
+                            <li><code>cpu_spike</code> — primary: cpu_usage, secondary: request_rate</li>
+                            <li><code>memory_leak</code> — primary: memory_usage, secondary: cpu_usage, error_rate</li>
+                            <li><code>disk_saturation</code> — primary: disk_io, secondary: network_latency</li>
+                            <li><code>network_degradation</code> — primary: network_latency, secondary: error_rate</li>
+                            <li><code>error_burst</code> — primary: error_rate, secondary: request_rate</li>
+                            <li><code>cascading_failure</code> — primary: cpu, memory, errors, secondary: latency, requests</li>
+                        </ul>
+                        <h4>Step 2: Pearson correlation analysis</h4>
+                        <p>Computes pairwise Pearson correlation coefficients across all metrics over the sliding history window. Pairs exceeding r > 0.7 provide additional correlation evidence, boosting diagnosis confidence by up to +15%.</p>
+                        <h4>Output</h4>
+                        <p>A <code>RootCauseReport</code> with the identified cause, confidence score, correlated metrics, and actionable recommendations specific to the failure type.</p>
+                    </div>`
+            },
+            remediate: {
+                title: 'Remediate - Autonomous Actions',
+                build: (s) => {
+                    const stats = s.remediation_stats;
+                    const learnedRates = stats.learned_rates || {};
+                    const learnedHtml = Object.keys(learnedRates).length > 0
+                        ? Object.entries(learnedRates).map(([k, v]) =>
+                            `<div class="stat-row"><span class="label"><code>${k}</code></span><span class="val">${(v * 100).toFixed(0)}%</span></div>`
+                        ).join('')
+                        : '<p style="color:var(--text-muted)">No learned rates yet — will populate after first remediation.</p>';
+
+                    return `
+                    <div class="pipeline-detail">
+                        <h4>What it does</h4>
+                        <p>Follows the <strong>OODA loop</strong> (Observe-Orient-Decide-Act) to select and execute the best remediation action for each diagnosed root cause.</p>
+                        <h4>Decision logic</h4>
+                        <ul>
+                            <li>If confidence &lt; <strong>0.7</strong>: alert only, no autonomous action</li>
+                            <li>If confidence &ge; 0.7 and autonomous mode is on: execute best action</li>
+                            <li>If max retries (3) exceeded for a cause: escalate to human operator</li>
+                        </ul>
+                        <h4>Action selection</h4>
+                        <p>Each root cause has 2 candidate actions with configured base success rates. The engine selects the action with the highest <em>effective</em> rate, which blends the base rate with learned experience. Recently-failed actions are penalized (-15% per recent failure).</p>
+                        <h4>Available actions</h4>
+                        <ul>
+                            <li><code>cpu_spike</code>: scale_horizontal (85%), kill_runaway_process (90%)</li>
+                            <li><code>memory_leak</code>: restart_service (95%), increase_memory_limit (70%)</li>
+                            <li><code>disk_saturation</code>: cleanup_temp_files (80%), expand_storage (95%)</li>
+                            <li><code>network_degradation</code>: failover_to_backup (88%), rate_limit_traffic (75%)</li>
+                            <li><code>error_burst</code>: enable_circuit_breaker (90%), rollback_deployment (92%)</li>
+                            <li><code>cascading_failure</code>: isolate_failing_service (85%), activate_fallback_mode (80%)</li>
+                        </ul>
+                        <h4>Live stats</h4>
+                        <div class="stat-row"><span class="label">Total actions</span><span class="val">${stats.total_actions}</span></div>
+                        <div class="stat-row"><span class="label">Success rate</span><span class="val">${(stats.success_rate * 100).toFixed(0)}%</span></div>
+                        <div class="stat-row"><span class="label">Autonomous actions</span><span class="val">${stats.autonomous_actions}</span></div>
+                        <div class="stat-row"><span class="label">Autonomous success rate</span><span class="val">${(stats.autonomous_success_rate * 100).toFixed(0)}%</span></div>
+                    </div>`
+                }
+            },
+            learn: {
+                title: 'Learn - Adaptive Learning',
+                build: (s) => {
+                    const stats = s.remediation_stats;
+                    const learnedRates = stats.learned_rates || {};
+                    const learnedHtml = Object.keys(learnedRates).length > 0
+                        ? Object.entries(learnedRates).map(([k, v]) =>
+                            `<div class="stat-row"><span class="label"><code>${k}</code></span><span class="val">${(v * 100).toFixed(0)}%</span></div>`
+                        ).join('')
+                        : '<p style="color:var(--text-muted)">No learned rates yet — the agent hasn\'t remediated anything yet.</p>';
+
+                    return `
+                    <div class="pipeline-detail">
+                        <h4>What it does</h4>
+                        <p>The Knowledge phase closes the MAPE-K loop. Every remediation outcome feeds back into the system to improve future decisions.</p>
+                        <h4>Reinforcement-style learning</h4>
+                        <ul>
+                            <li>On <strong>success</strong>: learned success rate for that action increases by <strong>+5%</strong>, failure counter resets to 0</li>
+                            <li>On <strong>failure</strong>: learned success rate decreases by <strong>-10%</strong> (min 10%), failure counter increments</li>
+                            <li>The effective rate blends the base config rate with the learned rate: <code>(base + learned) / 2</code></li>
+                            <li>Recent failures (last 10 actions) additionally penalize selection by -15% each</li>
+                        </ul>
+                        <h4>Isolation Forest retraining</h4>
+                        <p>The ML model retrains every 20 new samples on the full sliding window, adapting to concept drift in the metrics.</p>
+                        <h4>Simulator state reset</h4>
+                        <p>When remediation succeeds, the simulator's anomaly state (e.g., active memory leak accumulator) is reset, simulating a real "fix" taking effect.</p>
+                        <h4>Learned success rates</h4>
+                        ${learnedHtml}
+                    </div>`
+                }
+            },
+        };
+
+        function showPipelineDetail(stage) {
+            const info = pipelineInfo[stage];
+            if (!info) return;
+            const state = latestState || {
+                cycle_count: 0, anomaly_count: 0, detector_trained: false,
+                history_size: 0, min_training_samples: 30, recent_metrics: [],
+                remediation_stats: { total_actions: 0, success_rate: 0, autonomous_actions: 0, autonomous_success_rate: 0, learned_rates: {} },
+            };
+            document.getElementById('modalTitle').textContent = info.title;
+            document.getElementById('modalBody').style.display = 'none';
+            const richBody = document.getElementById('modalRichBody');
+            richBody.innerHTML = info.build(state);
+            richBody.style.display = 'block';
+            document.getElementById('modalOverlay').classList.add('active');
+        }
+
+        function closeModal(e) {
+            if (!e || e.target === document.getElementById('modalOverlay')) {
+                document.getElementById('modalOverlay').classList.remove('active');
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
+        });
+
+        /* ============ AGENT CONTROL ============ */
+        async function stopAgent() {
+            try {
+                await fetch('/api/agent/stop', { method: 'POST' });
+            } catch (err) { console.error('Failed to stop agent:', err); }
+        }
+
+        async function startAgent() {
+            try {
+                await fetch('/api/agent/start', { method: 'POST' });
+            } catch (err) { console.error('Failed to start agent:', err); }
+        }
+
+        /* ============ SETTINGS ============ */
+        function changePollInterval() {
+            pollIntervalMs = parseInt(document.getElementById('pollInterval').value);
+            clearInterval(pollTimer);
+            pollTimer = setInterval(fetchAndUpdate, pollIntervalMs);
+        }
+
+        /* ============ SOUND ============ */
+        function playNotificationSound() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.value = 880;
+                osc.type = 'sine';
+                gain.gain.value = 0.1;
+                osc.start();
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+                osc.stop(ctx.currentTime + 0.3);
+            } catch (e) { /* audio not available */ }
+        }
+
+        /* ============ MAIN POLL ============ */
         async function fetchAndUpdate() {
             try {
                 const res = await fetch('/api/state');
                 const state = await res.json();
+                latestState = state;
                 updateStats(state);
                 updateCharts(state.recent_metrics);
                 updateEvents(state.recent_events);
             } catch (err) {
                 document.getElementById('statusText').textContent = 'Disconnected';
-                document.getElementById('statusDot').style.background = '#ff4444';
+                document.getElementById('statusIndicator').classList.add('stopped');
             }
         }
 
+        /* ============ INIT ============ */
         initCharts();
         fetchAndUpdate();
-        setInterval(fetchAndUpdate, 3000);
+        pollTimer = setInterval(fetchAndUpdate, pollIntervalMs);
     </script>
 </body>
 </html>

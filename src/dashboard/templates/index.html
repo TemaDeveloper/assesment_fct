@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIOps Agent Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0f1923;
+            color: #e0e0e0;
+            min-height: 100vh;
+        }
+        .header {
+            background: linear-gradient(135deg, #1a2332 0%, #2d3748 100%);
+            padding: 20px 30px;
+            border-bottom: 2px solid #00d4aa;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 {
+            font-size: 24px;
+            color: #00d4aa;
+        }
+        .header .status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .status-dot {
+            width: 12px; height: 12px;
+            border-radius: 50%;
+            background: #00d4aa;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: #1a2332;
+            border-radius: 10px;
+            padding: 20px;
+            border: 1px solid #2d3748;
+            text-align: center;
+        }
+        .stat-card .value {
+            font-size: 36px;
+            font-weight: bold;
+            color: #00d4aa;
+        }
+        .stat-card .label {
+            font-size: 13px;
+            color: #8899aa;
+            margin-top: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .stat-card.warning .value { color: #ffaa00; }
+        .stat-card.danger .value { color: #ff4444; }
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .chart-card {
+            background: #1a2332;
+            border-radius: 10px;
+            padding: 15px;
+            border: 1px solid #2d3748;
+        }
+        .chart-card h3 {
+            color: #00d4aa;
+            margin-bottom: 10px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .events-section {
+            background: #1a2332;
+            border-radius: 10px;
+            padding: 20px;
+            border: 1px solid #2d3748;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .events-section h3 {
+            color: #00d4aa;
+            margin-bottom: 15px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .event-item {
+            padding: 10px 15px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            background: #0f1923;
+            border-left: 3px solid #2d3748;
+            font-size: 13px;
+        }
+        .event-item.anomaly { border-left-color: #ff4444; }
+        .event-item.diagnosis { border-left-color: #ffaa00; }
+        .event-item.remediation { border-left-color: #00d4aa; }
+        .event-item.info { border-left-color: #4488ff; }
+        .event-item.metric { border-left-color: #2d3748; }
+        .event-time {
+            color: #667788;
+            font-size: 11px;
+            margin-bottom: 3px;
+        }
+        .event-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-right: 8px;
+        }
+        .badge-anomaly { background: #ff4444; color: white; }
+        .badge-diagnosis { background: #ffaa00; color: black; }
+        .badge-remediation { background: #00d4aa; color: black; }
+        .badge-info { background: #4488ff; color: white; }
+        .architecture {
+            background: #1a2332;
+            border-radius: 10px;
+            padding: 20px;
+            border: 1px solid #2d3748;
+            margin-bottom: 20px;
+        }
+        .architecture h3 {
+            color: #00d4aa;
+            margin-bottom: 15px;
+            font-size: 14px;
+            text-transform: uppercase;
+        }
+        .pipeline {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+        .pipeline-step {
+            flex: 1;
+            text-align: center;
+            padding: 15px;
+            background: #0f1923;
+            border-radius: 8px;
+            border: 1px solid #2d3748;
+        }
+        .pipeline-step .icon { font-size: 24px; margin-bottom: 5px; }
+        .pipeline-step .name { font-size: 12px; color: #00d4aa; font-weight: bold; }
+        .pipeline-step .desc { font-size: 10px; color: #667788; margin-top: 3px; }
+        .pipeline-arrow { color: #00d4aa; font-size: 20px; }
+        @media (max-width: 768px) {
+            .charts-grid { grid-template-columns: 1fr; }
+            .pipeline { flex-direction: column; }
+            .pipeline-arrow { transform: rotate(90deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>AIOps Agent Dashboard</h1>
+        <div class="status">
+            <div class="status-dot" id="statusDot"></div>
+            <span id="statusText">Connecting...</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Architecture Pipeline -->
+        <div class="architecture">
+            <h3>Agent Pipeline (MAPE-K Loop)</h3>
+            <div class="pipeline">
+                <div class="pipeline-step">
+                    <div class="icon">📊</div>
+                    <div class="name">Monitor</div>
+                    <div class="desc">Collect Metrics</div>
+                </div>
+                <div class="pipeline-arrow">→</div>
+                <div class="pipeline-step">
+                    <div class="icon">🔍</div>
+                    <div class="name">Detect</div>
+                    <div class="desc">Isolation Forest + Z-Score</div>
+                </div>
+                <div class="pipeline-arrow">→</div>
+                <div class="pipeline-step">
+                    <div class="icon">🧠</div>
+                    <div class="name">Analyze</div>
+                    <div class="desc">Root Cause Analysis</div>
+                </div>
+                <div class="pipeline-arrow">→</div>
+                <div class="pipeline-step">
+                    <div class="icon">⚡</div>
+                    <div class="name">Remediate</div>
+                    <div class="desc">Autonomous Actions</div>
+                </div>
+                <div class="pipeline-arrow">→</div>
+                <div class="pipeline-step">
+                    <div class="icon">📚</div>
+                    <div class="name">Learn</div>
+                    <div class="desc">Improve Over Time</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="value" id="cycleCount">0</div>
+                <div class="label">Monitoring Cycles</div>
+            </div>
+            <div class="stat-card warning">
+                <div class="value" id="anomalyCount">0</div>
+                <div class="label">Anomalies Detected</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="remediationCount">0</div>
+                <div class="label">Remediations</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="successRate">0%</div>
+                <div class="label">Success Rate</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="mlStatus">--</div>
+                <div class="label">ML Model</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="historySize">0</div>
+                <div class="label">Training Samples</div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h3>CPU & Memory Usage</h3>
+                <div id="cpuMemChart"></div>
+            </div>
+            <div class="chart-card">
+                <h3>Network Latency & Error Rate</h3>
+                <div id="netErrorChart"></div>
+            </div>
+            <div class="chart-card">
+                <h3>Disk I/O & Request Rate</h3>
+                <div id="diskReqChart"></div>
+            </div>
+            <div class="chart-card">
+                <h3>Anomaly Detection Timeline</h3>
+                <div id="anomalyTimeline"></div>
+            </div>
+        </div>
+
+        <!-- Event Log -->
+        <div class="events-section">
+            <h3>Agent Event Log (Latest First)</h3>
+            <div id="eventLog"></div>
+        </div>
+    </div>
+
+    <script>
+        const chartLayout = {
+            paper_bgcolor: '#1a2332',
+            plot_bgcolor: '#0f1923',
+            font: { color: '#8899aa', size: 11 },
+            margin: { t: 10, r: 20, b: 30, l: 50 },
+            height: 220,
+            xaxis: { gridcolor: '#2d3748', tickangle: -45 },
+            yaxis: { gridcolor: '#2d3748' },
+            legend: { orientation: 'h', y: -0.2 },
+        };
+
+        function initCharts() {
+            Plotly.newPlot('cpuMemChart', [
+                { y: [], name: 'CPU %', type: 'scatter', line: { color: '#ff6b6b' } },
+                { y: [], name: 'Memory %', type: 'scatter', line: { color: '#4ecdc4' } },
+            ], chartLayout);
+
+            Plotly.newPlot('netErrorChart', [
+                { y: [], name: 'Latency (ms)', type: 'scatter', line: { color: '#ffd93d' } },
+                { y: [], name: 'Errors/min', type: 'scatter', line: { color: '#ff4444' } },
+            ], chartLayout);
+
+            Plotly.newPlot('diskReqChart', [
+                { y: [], name: 'Disk I/O (MB/s)', type: 'scatter', line: { color: '#6c5ce7' } },
+                { y: [], name: 'Requests/s', type: 'scatter', line: { color: '#00d4aa' } },
+            ], chartLayout);
+
+            Plotly.newPlot('anomalyTimeline', [
+                { y: [], name: 'Anomaly Score', type: 'bar', marker: { color: '#ff4444' } },
+            ], chartLayout);
+        }
+
+        function updateCharts(metrics) {
+            if (!metrics || metrics.length === 0) return;
+
+            const cpu = metrics.map(m => m.cpu_usage);
+            const mem = metrics.map(m => m.memory_usage);
+            const lat = metrics.map(m => m.network_latency);
+            const err = metrics.map(m => m.error_rate);
+            const disk = metrics.map(m => m.disk_io);
+            const req = metrics.map(m => m.request_rate);
+            const labels = metrics.map((m, i) => i);
+            const anomaly = metrics.map(m => m.is_anomaly ? 1 : 0);
+
+            Plotly.update('cpuMemChart', { y: [cpu, mem], x: [labels, labels] });
+            Plotly.update('netErrorChart', { y: [lat, err], x: [labels, labels] });
+            Plotly.update('diskReqChart', { y: [disk, req], x: [labels, labels] });
+            Plotly.update('anomalyTimeline', { y: [anomaly], x: [labels] });
+        }
+
+        function updateStats(state) {
+            document.getElementById('cycleCount').textContent = state.cycle_count;
+            document.getElementById('anomalyCount').textContent = state.anomaly_count;
+            document.getElementById('remediationCount').textContent = state.remediation_count;
+            document.getElementById('mlStatus').textContent = state.detector_trained ? 'Trained' : 'Learning';
+            document.getElementById('historySize').textContent = state.history_size;
+
+            const rate = state.remediation_stats.autonomous_success_rate;
+            document.getElementById('successRate').textContent =
+                (rate * 100).toFixed(0) + '%';
+
+            document.getElementById('statusText').textContent =
+                state.running ? 'Running' : 'Stopped';
+            document.getElementById('statusDot').style.background =
+                state.running ? '#00d4aa' : '#ff4444';
+        }
+
+        function updateEvents(events) {
+            const log = document.getElementById('eventLog');
+            // Show only non-metric events, latest first
+            const filtered = events
+                .filter(e => e.event_type !== 'metric')
+                .reverse()
+                .slice(0, 50);
+
+            log.innerHTML = filtered.map(e => {
+                const badgeClass = 'badge-' + e.event_type;
+                return `
+                    <div class="event-item ${e.event_type}">
+                        <div class="event-time">${new Date(e.timestamp).toLocaleTimeString()}</div>
+                        <span class="event-badge ${badgeClass}">${e.event_type}</span>
+                        ${e.summary}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function fetchAndUpdate() {
+            try {
+                const res = await fetch('/api/state');
+                const state = await res.json();
+                updateStats(state);
+                updateCharts(state.recent_metrics);
+                updateEvents(state.recent_events);
+            } catch (err) {
+                document.getElementById('statusText').textContent = 'Disconnected';
+                document.getElementById('statusDot').style.background = '#ff4444';
+            }
+        }
+
+        initCharts();
+        fetchAndUpdate();
+        setInterval(fetchAndUpdate, 3000);
+    </script>
+</body>
+</html>

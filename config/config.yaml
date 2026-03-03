@@ -1,0 +1,121 @@
+# AIOps Agent Configuration
+
+agent:
+  name: "AIOps-Agent-v1"
+  monitoring_interval: 5        # seconds between monitoring cycles
+  history_window: 100           # number of data points to keep in memory
+  autonomous_mode: true         # whether agent can auto-remediate
+
+simulator:
+  # Normal operating ranges for metrics
+  metrics:
+    cpu_usage:
+      normal_mean: 45
+      normal_std: 10
+      unit: "%"
+    memory_usage:
+      normal_mean: 55
+      normal_std: 8
+      unit: "%"
+    disk_io:
+      normal_mean: 30
+      normal_std: 12
+      unit: "MB/s"
+    network_latency:
+      normal_mean: 20
+      normal_std: 5
+      unit: "ms"
+    error_rate:
+      normal_mean: 2
+      normal_std: 1
+      unit: "errors/min"
+    request_rate:
+      normal_mean: 500
+      normal_std: 50
+      unit: "req/s"
+
+  # Anomaly injection settings
+  anomaly:
+    probability: 0.15           # chance of anomaly per cycle
+    types:
+      - cpu_spike
+      - memory_leak
+      - disk_saturation
+      - network_degradation
+      - error_burst
+      - cascading_failure
+
+detector:
+  # Isolation Forest parameters
+  isolation_forest:
+    contamination: 0.1
+    n_estimators: 100
+    random_state: 42
+
+  # Z-score threshold for statistical detection
+  zscore_threshold: 2.5
+
+  # Minimum data points needed before ML detection activates
+  min_training_samples: 30
+
+analyzer:
+  # Correlation thresholds
+  correlation_threshold: 0.7
+  # Time window for correlating events (seconds)
+  correlation_window: 30
+
+remediation:
+  # Available remediation actions
+  actions:
+    cpu_spike:
+      - name: "scale_horizontal"
+        description: "Add more instances to distribute CPU load"
+        success_rate: 0.85
+      - name: "kill_runaway_process"
+        description: "Identify and terminate high-CPU processes"
+        success_rate: 0.90
+    memory_leak:
+      - name: "restart_service"
+        description: "Gracefully restart the leaking service"
+        success_rate: 0.95
+      - name: "increase_memory_limit"
+        description: "Temporarily increase memory allocation"
+        success_rate: 0.70
+    disk_saturation:
+      - name: "cleanup_temp_files"
+        description: "Remove temporary and log files"
+        success_rate: 0.80
+      - name: "expand_storage"
+        description: "Provision additional disk space"
+        success_rate: 0.95
+    network_degradation:
+      - name: "failover_to_backup"
+        description: "Switch traffic to backup network path"
+        success_rate: 0.88
+      - name: "rate_limit_traffic"
+        description: "Apply rate limiting to reduce congestion"
+        success_rate: 0.75
+    error_burst:
+      - name: "enable_circuit_breaker"
+        description: "Activate circuit breaker pattern"
+        success_rate: 0.90
+      - name: "rollback_deployment"
+        description: "Roll back to the last stable version"
+        success_rate: 0.92
+    cascading_failure:
+      - name: "isolate_failing_service"
+        description: "Isolate the failing service to prevent cascade"
+        success_rate: 0.85
+      - name: "activate_fallback_mode"
+        description: "Switch to degraded but stable operation mode"
+        success_rate: 0.80
+
+  # Confidence threshold for autonomous remediation
+  confidence_threshold: 0.7
+  # Maximum retries for a remediation action
+  max_retries: 3
+
+dashboard:
+  host: "0.0.0.0"
+  port: 5050
+  debug: false
